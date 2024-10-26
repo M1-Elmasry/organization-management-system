@@ -1,12 +1,13 @@
-import express from 'express';
-import { SERVER_HOST, SERVER_PORT } from './utils/constants';
+import express from "express";
+import { SERVER_HOST, SERVER_PORT } from "./utils/constants";
+import APIRoutes from "./routes/index";
 
-const app = express()
+const app = express();
 
-app.get('/', (_req, res) => {
-  res.status(200).send("Hello World");
-})
+app.use(express.json());
 
-app.listen(SERVER_PORT, () => {
-  console.log(`server running on ${SERVER_HOST}:${SERVER_PORT}`)
-})
+app.use(APIRoutes);
+
+app.listen(Number.parseInt(SERVER_PORT, 10), SERVER_HOST, () => {
+	console.log(`server running on http://${SERVER_HOST}:${SERVER_PORT}`);
+});
