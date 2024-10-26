@@ -13,24 +13,26 @@ import {
 import redisClient from "../databases/redis";
 
 export default class AuthController {
-	static async login(req: Request, res: Response) {
+	static async login(req: Request, res: Response): Promise<void> {
 		const payload = req.body as UserCredentials;
 
 		const parseResults = UserCredentialsSchema.safeParse(payload);
 
 		if (!parseResults.success) {
-			return res.status(400).send({
+			res.status(400).send({
 				error: "invalid login payload",
 				validation: parseResults.error.errors,
 			});
+      return;
 		}
 
 		const user = await validateCredentials(payload);
 
 		if (!user) {
-			return res.status(400).send({
+			res.status(400).send({
 				error: "invalid email or password",
 			});
+      return;
 		}
 
 		const accessToken = jwt.sign({ userId: user._id }, ACCESS_TOKEN_SECRET, {
@@ -41,20 +43,21 @@ export default class AuthController {
 			expiresIn: REFRESH_TOKEN_EXPIRES_IN,
 		});
 
-		return res.status(200).send({
+		res.status(200).send({
 			message: "Done",
 			accessToken,
 			refreshToken,
 		});
 	}
 
-	static async refresh(req: Request, res: Response) {
+	static async refresh(req: Request, res: Response): Promise<void> {
 		const refreshToken: string | undefined = req.body.refresh_token;
 
 		if (!refreshToken) {
-			return res.status(401).send({
+			res.status(401).send({
 				error: "can't find refresh token",
 			});
+      return;
 		}
 
 		try {
@@ -68,9 +71,10 @@ export default class AuthController {
 			const isRevoked = await redisClient.isTokenRevoked(userId, refreshToken);
 
 			if (isRevoked) {
-				return res.status(403).json({
+				res.status(403).json({
 					error: "revoked refresh token",
 				});
+        return;
 			}
 
 			const newAccessToken = jwt.sign({ userId }, ACCESS_TOKEN_SECRET, {
@@ -81,25 +85,27 @@ export default class AuthController {
 				expiresIn: REFRESH_TOKEN_EXPIRES_IN,
 			});
 
-			return res.status(201).send({
+			res.status(201).send({
 				message: "created",
 				accessToken: newAccessToken,
 				refreshToken: newRefreshToken,
 			});
+
 		} catch (err) {
-			return res.status(403).send({
-				error: err.message,
+			res.status(403).send({
+				error: (err as Error).message,
 			});
 		}
 	}
 
-	static async revokeRefreshToken(req: Request, res: Response) {
+	static async revokeRefreshToken(req: Request, res: Response): Promise<void> {
 		const refreshToken: string | undefined = req.body.refresh_token;
 
 		if (!refreshToken) {
-			return res.status(401).json({
+			res.status(401).json({
 				error: "no token passed",
 			});
+      return;
 		}
 
 		let userId: string;
@@ -109,7 +115,8 @@ export default class AuthController {
 			payload = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET) as JwtPayload;
 			userId = payload.userId;
 		} catch (err) {
-			return res.status(401).json({ error: err.message });
+			res.status(401).json({ error: (err as Error).message });
+      return;
 		}
 
 		const expTime = payload.exp as number;
@@ -119,7 +126,7 @@ export default class AuthController {
 
 		redisClient.revokeToken(userId, refreshToken, remainingTime);
 
-		return res.status(201).json({
+		res.status(201).json({
 			message: "Done",
 		});
 	}

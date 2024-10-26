@@ -5,23 +5,25 @@ import { UserSchema } from "../types/user";
 import { isUserExists, hashPassword } from "../utils/helpers";
 
 export default class UserController {
-	static async createNewUser(req: Request, res: Response) {
+	static async createNewUser(req: Request, res: Response): Promise<void> {
 		const payload = req.body as UserDocument;
 
 		const parseResults = UserSchema.safeParse(payload);
 		if (!parseResults.success) {
-			return res.status(400).send({
+			res.status(400).send({
 				error: "invalid user payload",
 				validation: parseResults.error.errors,
 			});
+			return;
 		}
 
 		const isExists = await isUserExists(payload.email);
 
 		if (isExists) {
-			return res.status(400).send({
+			res.status(400).send({
 				error: "email currently exists",
 			});
+			return;
 		}
 
 		const hashedPassword = hashPassword(payload.password);
@@ -32,11 +34,12 @@ export default class UserController {
 		});
 
 		if (!results?.acknowledged) {
-			return res.status(500).send({
+			res.status(500).send({
 				error: "can't write a new user",
 			});
+			return;
 		}
 
-		return res.status(201).json({ message: "Done" });
+		res.status(201).json({ message: "Done" });
 	}
 }

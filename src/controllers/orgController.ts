@@ -9,25 +9,27 @@ import {
 import { ObjectId } from "mongodb";
 
 export default class OrgController {
-	static async createOrganization(req: Request, res: Response) {
+	static async createOrganization(req: Request, res: Response): Promise<void> {
 		// passed from authGaurd
 		// @ts-ignore
 		const userId = req.userId as string;
 
 		if (!userId) {
-			return res.status(400).json({
+			res.status(400).json({
 				error: "no user id specefied",
 			});
+			return;
 		}
 
 		const payload = req.body;
 		const parseResults = OrganizationPayloadSchema.safeParse(payload);
 
 		if (!parseResults.success) {
-			return res.status(401).json({
+			res.status(401).json({
 				error: "invalid organization payload",
 				validations: parseResults.error.errors,
 			});
+			return;
 		}
 
 		const { name, description } = parseResults.data;
@@ -42,22 +44,27 @@ export default class OrgController {
 		});
 
 		if (!result?.acknowledged) {
-			return res
-				.status(500)
-				.json({ error: "failed to create an organization" });
+			res.status(500).json({
+				error: "failed to create an organization",
+			});
+			return;
 		}
 
-		return res.status(201).json({ organization_id: result.insertedId });
+		res.status(201).json({ organization_id: result.insertedId });
 	}
 
-	static async getAllJoinedOrganizations(req: Request, res: Response) {
+	static async getAllJoinedOrganizations(
+		req: Request,
+		res: Response,
+	): Promise<void> {
 		// @ts-ignore
 		const userId = req.userId;
 
 		if (!userId) {
-			return res.status(400).json({
+			res.status(400).json({
 				error: "can't get user id",
 			});
+			return;
 		}
 
 		const organizations = await dbClient.organizationCollection
@@ -130,10 +137,10 @@ export default class OrgController {
 			])
 			.toArray();
 
-		return res.status(200).json(organizations);
+		res.status(200).json(organizations);
 	}
 
-	static async getOrganization(req: Request, res: Response) {
+	static async getOrganization(req: Request, res: Response): Promise<void> {
 		// passed from org middleware
 		// @ts-ignore
 		const organizationId = req.organizationId as ObjectId;
@@ -206,27 +213,34 @@ export default class OrgController {
 			])
 			.toArray();
 
-		return res.status(200).json(organization[0]);
+		if (!organization) {
+			res.status(404).json({ error: "Organization not found" });
+			return;
+		}
+
+		res.status(200).json(organization[0]);
 	}
 
-	static async updateOrganization(req: Request, res: Response) {
+	static async updateOrganization(req: Request, res: Response): Promise<void> {
 		// @ts-ignore
 		const organizationId = req.organizationId as string;
 		const payload = req.body;
 		const parseResults = OrganizationUpdatePayloadSchema.safeParse(payload);
 
 		if (!parseResults.success) {
-			return res.status(401).json({
+			res.status(401).json({
 				error: "invalid update workspace payload",
 				validations: parseResults.error.errors,
 			});
+			return;
 		}
 
 		const changes = parseResults.data as { [key: string]: string };
 
 		// if no changes do nothing
 		if (Object.keys(changes).length === 0) {
-			return res.status(401).json({ error: "nothing given to change" });
+			res.status(401).json({ error: "nothing given to change" });
+			return;
 		}
 
 		const updateResults = await dbClient.organizationCollection?.updateOne(
@@ -239,16 +253,17 @@ export default class OrgController {
 		);
 
 		if (updateResults?.acknowledged) {
-			return res.status(201).json({
+			res.status(201).json({
 				organization_id: organizationId,
 				...changes,
 			});
+			return;
 		}
 
-		return res.status(500).json({ error: "failed to update organization" });
+		res.status(500).json({ error: "failed to update organization" });
 	}
 
-	static async deleteOrganization(req: Request, res: Response) {
+	static async deleteOrganization(req: Request, res: Response): Promise<void> {
 		// @ts-ignore
 		const organizationId = req.organizationId as string;
 
@@ -257,13 +272,14 @@ export default class OrgController {
 		});
 
 		if (deleteResults?.acknowledged) {
-			return res.status(200).json({ message: "successfully deleted" });
+			res.status(200).json({ message: "successfully deleted" });
+			return;
 		}
 
-		return res.status(500).json({ error: "failed to delete organization" });
+		res.status(500).json({ error: "failed to delete organization" });
 	}
 
-	static async addMember(req: Request, res: Response) {
+	static async addMember(req: Request, res: Response): Promise<void> {
 		// @ts-ignore
 		const organizationId: string | undefined = req.organizationId;
 		const payload: OrganizationAddMemberPayload | undefined = req.body;
@@ -271,10 +287,11 @@ export default class OrgController {
 		const parseResults = OrganizationAddMemberSchema.safeParse(payload);
 
 		if (!parseResults.success) {
-			return res.status(401).json({
+			res.status(401).json({
 				error: "invalid add member payload",
 				validations: parseResults.error.errors,
 			});
+			return;
 		}
 
 		const { user_email } = payload as OrganizationAddMemberPayload;
@@ -284,9 +301,8 @@ export default class OrgController {
 		});
 
 		if (!member) {
-			return res
-				.status(401)
-				.json({ error: "can't find user with passed email" });
+			res.status(401).json({ error: "can't find user with passed email" });
+			return;
 		}
 
 		const updateResult = await dbClient.organizationCollection?.updateOne(
@@ -299,12 +315,13 @@ export default class OrgController {
 		);
 
 		if (!updateResult?.acknowledged) {
-			return res.status(500).json({
+			res.status(500).json({
 				error: "can't add member",
 			});
+			return;
 		}
 
-		return res.status(201).json({
+		res.status(201).json({
 			message: "added",
 		});
 	}

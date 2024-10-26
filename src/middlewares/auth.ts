@@ -9,12 +9,13 @@ export async function authGuard(
 	req: Request,
 	res: Response,
 	next: NextFunction,
-) {
+): Promise<void> {
 	const authHeader = req.header("Authorization");
 	const values = authHeader?.split(" ");
 
 	if (!values || values.length !== 2 || values[0] !== "Bearer") {
-		return res.status(401).json({ error: "Invalid authorization" });
+		res.status(401).json({ error: "Invalid authorization" });
+		return;
 	}
 
 	const token = values[1];
@@ -25,23 +26,26 @@ export async function authGuard(
 		const payload = jwt.verify(token, ACCESS_TOKEN_SECRET) as JwtPayload;
 		userId = payload.userId;
 	} catch (err) {
-		return res.status(401).json({ error: err.message });
+		res.status(401).json({ error: (err as Error).message });
+		return;
 	}
 
 	if (!userId || !ObjectId.isValid(userId)) {
-    console.log(userId);
-		return res.status(401).json({ error: "Invalid token payload" });
+		console.log(userId);
+		res.status(401).json({ error: "Invalid token payload" });
+		return;
 	}
 
 	const user = await dbClient.userCollection?.findOne({
 		_id: new ObjectId(userId),
 	});
 	if (!user) {
-		return res.status(401).json({ error: "User not found" });
+		res.status(401).json({ error: "User not found" });
+		return;
 	}
 
-  // @ts-ignore
-  req.userId = userId;
+	// @ts-ignore
+	req.userId = userId;
 
-	return next();
+	next();
 }
