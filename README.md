@@ -5,7 +5,7 @@ This project is an organizational management application that allows users to cr
 ## Routes
 
 > [!IMPORTANT]  
-> if you using `curl` make sure you add `content-type: application/json` in request headers when sending payloads
+> if you're using `curl` make sure you add `content-type: application/json` in request headers when sending payloads
 
 ### 1. Signup Endpoint
 - **Request Schema**: `POST /signup`
